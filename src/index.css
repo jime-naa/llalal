@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@layer utilities {
+  /* Palette scrollbar: #E9E1D0, #8A7F6A, #2F4F3E */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #E9E1D0;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #8A7F6A;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #2F4F3E;
+  }
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}

@@ -1,0 +1,6 @@
+{
+  "name": "SumoBot OS - Control y Firmware ESP32",
+  "description": "Sistema de control táctil de 3 palancas en landscape, simulación de Dohyo con sensores IR y generador de firmware C++ con rampas PWM sin bloqueo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
