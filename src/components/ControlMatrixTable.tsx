@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table, Copy, Check, Heart } from 'lucide-react';
+import { Table, Copy, Check, ShieldCheck } from 'lucide-react';
 
 export const ControlMatrixTable: React.FC = () => {
   const [filterMode, setFilterMode] = useState<string>('ALL');
@@ -36,7 +36,7 @@ export const ControlMatrixTable: React.FC = () => {
       leverR: '0%',
       motorL: '-50% (Atrás)',
       motorR: '-50% (Atrás)',
-      description: 'Retirada limpia manteniendo la dirección frontal.',
+      description: 'Retirada limpia manteniendo la orientación frontal.',
       type: 'cruise'
     },
     {
@@ -62,15 +62,26 @@ export const ControlMatrixTable: React.FC = () => {
       type: 'override'
     },
     {
-      mode: 'Curva en Carrera',
-      action: 'Viraje suave hacia la derecha',
-      leverL: '+100%',
+      mode: 'Giro 90° Izq',
+      action: '1 Toque Calibrado (260ms)',
+      leverL: 'Auto',
       leverC: 'En pausa',
-      leverR: '+40%',
-      motorL: '+100% (Adelante)',
-      motorR: '+40% (Adelante)',
-      description: 'Permite rodear al contrincante sin detener el avance.',
-      type: 'override'
+      leverR: 'Auto',
+      motorL: '-86% (Atrás)',
+      motorR: '+86% (Adelante)',
+      description: 'Giro de precisión de 90° hacia la izquierda de un solo uso.',
+      type: 'turn90'
+    },
+    {
+      mode: 'Giro 90° Der',
+      action: '1 Toque Calibrado (260ms)',
+      leverL: 'Auto',
+      leverC: 'En pausa',
+      leverR: 'Auto',
+      motorL: '+86% (Adelante)',
+      motorR: '-86% (Atrás)',
+      description: 'Giro de precisión de 90° hacia la derecha de un solo uso.',
+      type: 'turn90'
     },
     {
       mode: 'Soltar Palancas',
@@ -89,15 +100,15 @@ export const ControlMatrixTable: React.FC = () => {
       leverL: 'Bloqueada',
       leverC: 'Bloqueada',
       leverR: 'Bloqueada',
-      motorL: 'Freno dinámico -> Reversa -> Giro',
-      motorR: 'Freno dinámico -> Reversa -> Giro',
-      description: 'Ignora la app al instante, frena, da marcha atrás y gira al centro.',
+      motorL: 'Contraataque forzado (800ms)',
+      motorR: 'Contraataque forzado (800ms)',
+      description: 'Ignora la app al instante, frena y recupera el centro con millis().',
       type: 'emergency'
     },
   ].filter((row) => {
     if (filterMode === 'ALL') return true;
     if (filterMode === 'CRUISE') return row.type === 'cruise';
-    if (filterMode === 'OVERRIDE') return row.type === 'override';
+    if (filterMode === 'OVERRIDE') return row.type === 'override' || row.type === 'turn90';
     if (filterMode === 'EMERGENCY') return row.type === 'emergency' || row.type === 'stop';
     return true;
   });
@@ -114,30 +125,30 @@ export const ControlMatrixTable: React.FC = () => {
   };
 
   return (
-    <div className="bg-white/95 rounded-3xl p-5 md:p-6 shadow-sm border border-rose-100/80">
+    <div className="bg-[#f8f5ee] rounded-3xl p-5 md:p-6 shadow-sm border border-[#d8cfbe]">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-rose-50 pb-4 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e5dcce] pb-4 mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-500">
-            <Heart className="w-5 h-5 fill-rose-300 text-rose-400" />
+          <div className="w-10 h-10 rounded-2xl bg-[#004225] flex items-center justify-center text-[#E9E1D0]">
+            <ShieldCheck className="w-5 h-5 text-[#E9E1D0]" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-stone-800">
+            <h3 className="text-base font-bold text-[#1B1C1E]">
               Matriz de Control y Comportamiento
             </h3>
-            <p className="text-xs text-stone-400">
-              Guía clara de qué hace el robot según cómo muevas cada palanca.
+            <p className="text-xs text-[#8A7F6A]">
+              Guía clara de qué hace el robot según cómo muevas cada palanca o botón.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Friendly filters */}
-          <div className="flex items-center bg-stone-100 p-1 rounded-full text-xs">
+          {/* Filters */}
+          <div className="flex items-center bg-[#E9E1D0] p-1 rounded-full text-xs border border-[#d8cfbe]">
             <button
               onClick={() => setFilterMode('ALL')}
               className={`px-3 py-1 rounded-full font-medium transition-all ${
-                filterMode === 'ALL' ? 'bg-white text-stone-900 shadow-xs' : 'text-stone-500 hover:text-stone-800'
+                filterMode === 'ALL' ? 'bg-[#004225] text-[#E9E1D0] shadow-xs' : 'text-[#2F4F3E] hover:text-[#004225]'
               }`}
             >
               Todos
@@ -145,7 +156,7 @@ export const ControlMatrixTable: React.FC = () => {
             <button
               onClick={() => setFilterMode('CRUISE')}
               className={`px-3 py-1 rounded-full font-medium transition-all ${
-                filterMode === 'CRUISE' ? 'bg-white text-stone-900 shadow-xs' : 'text-stone-500 hover:text-stone-800'
+                filterMode === 'CRUISE' ? 'bg-[#004225] text-[#E9E1D0] shadow-xs' : 'text-[#2F4F3E] hover:text-[#004225]'
               }`}
             >
               Línea Recta
@@ -153,35 +164,35 @@ export const ControlMatrixTable: React.FC = () => {
             <button
               onClick={() => setFilterMode('OVERRIDE')}
               className={`px-3 py-1 rounded-full font-medium transition-all ${
-                filterMode === 'OVERRIDE' ? 'bg-white text-stone-900 shadow-xs' : 'text-stone-500 hover:text-stone-800'
+                filterMode === 'OVERRIDE' ? 'bg-[#004225] text-[#E9E1D0] shadow-xs' : 'text-[#2F4F3E] hover:text-[#004225]'
               }`}
             >
-              Giros Laterales
+              Giros
             </button>
             <button
               onClick={() => setFilterMode('EMERGENCY')}
               className={`px-3 py-1 rounded-full font-medium transition-all ${
-                filterMode === 'EMERGENCY' ? 'bg-white text-stone-900 shadow-xs' : 'text-stone-500 hover:text-stone-800'
+                filterMode === 'EMERGENCY' ? 'bg-[#004225] text-[#E9E1D0] shadow-xs' : 'text-[#2F4F3E] hover:text-[#004225]'
               }`}
             >
-              Emergencia & Parada
+              Emergencia
             </button>
           </div>
 
           <button
             onClick={copyAsMarkdown}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold border border-rose-200/60 transition-all shadow-xs"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#E9E1D0] hover:bg-[#d8cfbe] text-[#004225] text-xs font-semibold border border-[#d8cfbe] transition-all shadow-xs"
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? <Check className="w-3.5 h-3.5 text-[#004225]" /> : <Copy className="w-3.5 h-3.5" />}
             <span>{copied ? '¡Copiado!' : 'Copiar tabla'}</span>
           </button>
         </div>
       </div>
 
       {/* Clean table */}
-      <div className="overflow-x-auto rounded-2xl border border-rose-50">
+      <div className="overflow-x-auto rounded-2xl border border-[#d8cfbe]">
         <table className="w-full text-left text-xs">
-          <thead className="bg-stone-50/80 text-stone-500 border-b border-rose-50 uppercase text-[10px] tracking-wider font-semibold">
+          <thead className="bg-[#ede6d8] text-[#1B1C1E] border-b border-[#d8cfbe] uppercase text-[10px] tracking-wider font-bold">
             <tr>
               <th className="px-4 py-3">Modo</th>
               <th className="px-3 py-3">Palanca L</th>
@@ -189,34 +200,34 @@ export const ControlMatrixTable: React.FC = () => {
               <th className="px-3 py-3">Palanca R</th>
               <th className="px-4 py-3">Motor Izquierdo</th>
               <th className="px-4 py-3">Motor Derecho</th>
-              <th className="px-4 py-3">¿Qué hace el robot?</th>
+              <th className="px-4 py-3">Comportamiento en Dohyo</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-rose-50/60 bg-white">
+          <tbody className="divide-y divide-[#e5dcce] bg-[#f8f5ee]">
             {filteredData.map((row, idx) => {
               const isEmerg = row.type === 'emergency';
-              const isOver = row.type === 'override';
+              const isTurn = row.type === 'turn90';
               return (
-                <tr key={idx} className="hover:bg-rose-50/30 transition-colors">
-                  <td className="px-4 py-3 font-semibold text-stone-800 whitespace-nowrap">
+                <tr key={idx} className="hover:bg-[#f0ebe0] transition-colors">
+                  <td className="px-4 py-3 font-semibold text-[#1B1C1E] whitespace-nowrap">
                     <span
-                      className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-medium ${
+                      className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                         isEmerg
-                          ? 'bg-rose-100 text-rose-700'
-                          : isOver
-                          ? 'bg-purple-100 text-purple-700'
-                          : 'bg-emerald-100 text-emerald-800'
+                          ? 'bg-rose-100 text-rose-800'
+                          : isTurn
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-[#E9E1D0] text-[#004225]'
                       }`}
                     >
                       {row.mode}
                     </span>
                   </td>
-                  <td className="px-3 py-3 font-medium text-rose-600 whitespace-nowrap">{row.leverL}</td>
-                  <td className="px-3 py-3 font-medium text-purple-600 whitespace-nowrap">{row.leverC}</td>
-                  <td className="px-3 py-3 font-medium text-rose-600 whitespace-nowrap">{row.leverR}</td>
-                  <td className="px-4 py-3 text-stone-700 font-medium whitespace-nowrap">{row.motorL}</td>
-                  <td className="px-4 py-3 text-stone-700 font-medium whitespace-nowrap">{row.motorR}</td>
-                  <td className="px-4 py-3 text-stone-500 min-w-[220px]">{row.description}</td>
+                  <td className="px-3 py-3 font-mono text-[#004225] whitespace-nowrap">{row.leverL}</td>
+                  <td className="px-3 py-3 font-mono text-[#2F4F3E] whitespace-nowrap">{row.leverC}</td>
+                  <td className="px-3 py-3 font-mono text-[#004225] whitespace-nowrap">{row.leverR}</td>
+                  <td className="px-4 py-3 font-semibold text-[#1B1C1E] whitespace-nowrap">{row.motorL}</td>
+                  <td className="px-4 py-3 font-semibold text-[#1B1C1E] whitespace-nowrap">{row.motorR}</td>
+                  <td className="px-4 py-3 text-[#8A7F6A] min-w-[220px]">{row.description}</td>
                 </tr>
               );
             })}

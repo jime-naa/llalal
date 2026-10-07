@@ -87,7 +87,7 @@ export const TelemetryRampChart: React.FC<TelemetryRampChartProps> = ({
         {/* Zero baseline */}
         <div
           className="absolute left-0 right-0 border-t border-dashed border-[#8A7F6A]/50 pointer-events-none"
-          style={{ top: `${midY}px` }}
+          style={{ top: '50%' }}
         />
 
         <svg

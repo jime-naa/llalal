@@ -38,6 +38,23 @@ export function useSumoPhysics({
   const robotStateRef = useRef({ x: CENTER, y: CENTER, heading: -90 });
   const animFrameRef = useRef<number | null>(null);
 
+  // References to keep latest prop values without breaking the requestAnimationFrame loop
+  const motorLRef = useRef(motorL);
+  const motorRRef = useRef(motorR);
+  const irSensorsRef = useRef(irSensors);
+  const escapeSubstateRef = useRef(escapeSubstate);
+  const onIRChangeRef = useRef(onIRChange);
+  const onEmergencyTriggeredRef = useRef(onEmergencyTriggered);
+  const onTurn90CompleteRef = useRef(onTurn90Complete);
+
+  motorLRef.current = motorL;
+  motorRRef.current = motorR;
+  irSensorsRef.current = irSensors;
+  escapeSubstateRef.current = escapeSubstate;
+  onIRChangeRef.current = onIRChange;
+  onEmergencyTriggeredRef.current = onEmergencyTriggered;
+  onTurn90CompleteRef.current = onTurn90Complete;
+
   // 90 degree turn tracking
   const turn90ProgressRef = useRef<{
     active: 'LEFT' | 'RIGHT' | null;
@@ -70,17 +87,20 @@ export function useSumoPhysics({
 
       const { x, y, heading: currentHeading } = robotStateRef.current;
       const turnTrack = turn90ProgressRef.current;
+      const currentEscape = escapeSubstateRef.current;
 
-      let pwmL = motorL.currentPwm;
-      let pwmR = motorR.currentPwm;
+      let pwmL = motorLRef.current.currentPwm;
+      let pwmR = motorRRef.current.currentPwm;
 
-      // If one-shot 90° turn is active, override motors in the physics engine
-      if (turnTrack.active && escapeSubstate === 'IDLE') {
+      // If one-shot 90° turn is active and no emergency, command differential rotation
+      if (turnTrack.active && currentEscape === 'IDLE') {
         const turnSpeed = 220;
         if (turnTrack.active === 'LEFT') {
+          // Left turn: left wheel backwards, right wheel forwards
           pwmL = -turnSpeed;
           pwmR = turnSpeed;
         } else {
+          // Right turn: left wheel forwards, right wheel backwards
           pwmL = turnSpeed;
           pwmR = -turnSpeed;
         }
@@ -91,7 +111,8 @@ export function useSumoPhysics({
       const vR = (pwmR / 255) * maxSpeed;
 
       const linearV = (vL + vR) / 2;
-      const angularW = (vR - vL) / WHEELBASE;
+      // In screen coordinates (Y down): when vL > vR, vehicle rotates clockwise (positive angular velocity)
+      const angularW = (vL - vR) / WHEELBASE;
 
       const radHeading = (currentHeading * Math.PI) / 180;
       const newRadHeading = radHeading + angularW * dt;
@@ -103,7 +124,7 @@ export function useSumoPhysics({
         turnTrack.accumulatedAngle += angleDelta;
 
         if (turnTrack.accumulatedAngle >= 90) {
-          // Exactly 90° reached! Complete the one-shot turn and stop.
+          // Exactly 90° reached! Snap to target heading and stop.
           const targetHeading =
             turnTrack.active === 'LEFT'
               ? turnTrack.startHeading - 90
@@ -111,7 +132,7 @@ export function useSumoPhysics({
 
           newHeadingDeg = targetHeading;
           turnTrack.active = null;
-          onTurn90Complete();
+          onTurn90CompleteRef.current();
         }
       }
 
@@ -121,8 +142,17 @@ export function useSumoPhysics({
       const dx = Math.cos(newRadHeading) * linearV * dt;
       const dy = Math.sin(newRadHeading) * linearV * dt;
 
-      const nextX = Math.max(10, Math.min(ARENA_SIZE - 10, x + dx));
-      const nextY = Math.max(10, Math.min(ARENA_SIZE - 10, y + dy));
+      let nextX = x + dx;
+      let nextY = y + dy;
+
+      // Clamp robot position so it never vanishes off the canvas
+      const maxDistance = DOHYO_RADIUS + 12;
+      const distFromCenter = Math.hypot(nextX - CENTER, nextY - CENTER);
+      if (distFromCenter > maxDistance) {
+        const angle = Math.atan2(nextY - CENTER, nextX - CENTER);
+        nextX = CENTER + Math.cos(angle) * maxDistance;
+        nextY = CENTER + Math.sin(angle) * maxDistance;
+      }
 
       robotStateRef.current = { x: nextX, y: nextY, heading: newHeadingDeg };
       setRobotX(nextX);
@@ -142,20 +172,22 @@ export function useSumoPhysics({
       const distF = Math.hypot(sF_x - CENTER, sF_y - CENTER);
       const distR = Math.hypot(sR_x - CENTER, sR_y - CENTER);
 
-      const hitFront = distF >= INNER_RADIUS && distF <= DOHYO_RADIUS + 4;
-      const hitRear = distR >= INNER_RADIUS && distR <= DOHYO_RADIUS + 4;
+      // In Dohyo competition: White line is from INNER_RADIUS outwards
+      const hitFront = distF >= INNER_RADIUS;
+      const hitRear = distR >= INNER_RADIUS;
 
-      if (hitFront !== irSensors.front || hitRear !== irSensors.rear) {
-        onIRChange({ front: hitFront, rear: hitRear });
+      const prevIR = irSensorsRef.current;
+      if (hitFront !== prevIR.front || hitRear !== prevIR.rear) {
+        onIRChangeRef.current({ front: hitFront, rear: hitRear });
 
-        if (escapeSubstate === 'IDLE') {
+        if (currentEscape === 'IDLE') {
           if (turnTrack.active) {
             turnTrack.active = null;
-            onTurn90Complete();
+            onTurn90CompleteRef.current();
           }
 
-          if (hitFront) onEmergencyTriggered('FRONT');
-          else if (hitRear) onEmergencyTriggered('REAR');
+          if (hitFront) onEmergencyTriggeredRef.current('FRONT');
+          else if (hitRear) onEmergencyTriggeredRef.current('REAR');
         }
       }
 
@@ -166,7 +198,7 @@ export function useSumoPhysics({
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
-  }, [motorL.currentPwm, motorR.currentPwm, irSensors, escapeSubstate, onIRChange, onEmergencyTriggered, onTurn90Complete]);
+  }, []);
 
   const resetPosition = () => {
     turn90ProgressRef.current.active = null;
@@ -174,7 +206,7 @@ export function useSumoPhysics({
     setRobotX(CENTER);
     setRobotY(CENTER);
     setHeading(-90);
-    onIRChange({ front: false, rear: false });
+    onIRChangeRef.current({ front: false, rear: false });
   };
 
   const nudgeForwardToEdge = () => {

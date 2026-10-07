@@ -24,7 +24,7 @@ const DEFAULT_RAMP_CONFIG: RampConfig = {
 };
 
 export default function App() {
-  const [config] = useState<RampConfig>(DEFAULT_RAMP_CONFIG);
+  const [config, setConfig] = useState<RampConfig>(DEFAULT_RAMP_CONFIG);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBleModalOpen, setIsBleModalOpen] = useState(false);
 
@@ -414,6 +414,7 @@ export default function App() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         config={config}
+        onConfigChange={setConfig}
       />
 
       {/* Modal for Web Bluetooth Pairing & Status */}

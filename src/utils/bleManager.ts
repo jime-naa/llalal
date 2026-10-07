@@ -22,6 +22,8 @@ class BleManager {
   private server: any = null;
   private characteristic: any = null;
   private onStateChangeCallback: ((state: BleConnectionState) => void) | null = null;
+  private isWriting = false;
+  private queuedCommand: string | null = null;
 
   public state: BleConnectionState = {
     isConnected: false,
@@ -48,7 +50,7 @@ class BleManager {
   public async connectRealBle(): Promise<boolean> {
     if (!this.isWebBluetoothSupported()) {
       this.updateState({
-        errorMessage: 'Este navegador no soporta Web Bluetooth API. Puedes usar el modo simulado o abrir en Chrome/Edge.',
+        errorMessage: 'Este navegador no soporta Web Bluetooth API. Puedes usar el modo simulado o abrir en Google Chrome / Edge.',
       });
       return false;
     }
@@ -109,20 +111,22 @@ class BleManager {
         isSimulated: true,
         rssi: -58
       });
-    }, 400);
+    }, 300);
   }
 
   public disconnect() {
     if (this.device && this.device.gatt && this.device.gatt.connected) {
       try {
         this.device.gatt.disconnect();
-      } catch (e) {
+      } catch {
         // ignore
       }
     }
     this.device = null;
     this.server = null;
     this.characteristic = null;
+    this.isWriting = false;
+    this.queuedCommand = null;
 
     this.updateState({
       isConnected: false,
@@ -143,22 +147,33 @@ class BleManager {
       return false;
     }
 
+    if (this.isWriting) {
+      // Keep only the latest command in queue to prevent backpressure
+      this.queuedCommand = cmd;
+      return true;
+    }
+
+    this.isWriting = true;
     try {
       const encoder = new TextEncoder();
       const data = encoder.encode(cmd.endsWith('\n') ? cmd : cmd + '\n');
-      await this.characteristic.writeValueWithoutResponse(data);
-      return true;
-    } catch (err) {
       try {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(cmd.endsWith('\n') ? cmd : cmd + '\n');
+        await this.characteristic.writeValueWithoutResponse(data);
+      } catch {
         await this.characteristic.writeValue(data);
-        return true;
-      } catch (err2) {
-        console.error('Error sending BLE command:', err2);
-        return false;
+      }
+    } catch (err) {
+      console.warn('BLE transmission error:', err);
+    } finally {
+      this.isWriting = false;
+      if (this.queuedCommand !== null) {
+        const nextCmd = this.queuedCommand;
+        this.queuedCommand = null;
+        this.sendCommand(nextCmd);
       }
     }
+
+    return true;
   }
 }
 

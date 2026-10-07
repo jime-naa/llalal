@@ -285,6 +285,8 @@ const CleanLever: React.FC<CleanLeverProps> = ({
   const trackRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
   const springAnimRef = useRef<number | null>(null);
+  const latestValueRef = useRef(value);
+  latestValueRef.current = value;
 
   const springReturnToZero = useCallback(
     (currentVal: number) => {
@@ -294,7 +296,7 @@ const CleanLever: React.FC<CleanLeverProps> = ({
           onValueChange(0, false);
           return;
         }
-        v = v * 0.75;
+        v = v * 0.72;
         onValueChange(Math.round(v), false);
         springAnimRef.current = requestAnimationFrame(step);
       };
@@ -307,7 +309,11 @@ const CleanLever: React.FC<CleanLeverProps> = ({
     if (disabled) return;
     if (springAnimRef.current) cancelAnimationFrame(springAnimRef.current);
     isDraggingRef.current = true;
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    try {
+      trackRef.current?.setPointerCapture?.(e.pointerId);
+    } catch {
+      // ignore
+    }
     handlePointerMove(e);
   };
 
@@ -327,14 +333,19 @@ const CleanLever: React.FC<CleanLeverProps> = ({
       }
     }
 
+    latestValueRef.current = finalVal;
     onValueChange(finalVal, true);
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
     if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
-    (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
-    springReturnToZero(value);
+    try {
+      trackRef.current?.releasePointerCapture?.(e.pointerId);
+    } catch {
+      // ignore
+    }
+    springReturnToZero(latestValueRef.current);
   };
 
   const isForest = colorTheme === 'forest';

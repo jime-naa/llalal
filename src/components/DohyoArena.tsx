@@ -119,10 +119,12 @@ export const DohyoArena: React.FC<DohyoArenaProps> = ({
                 </div>
               </div>
 
-              {/* Robot Center Heading Degrees readout */}
-              <div className="my-auto text-[7px] font-extrabold text-[#E9E1D0] flex flex-col items-center">
-                <span>{Math.round(heading)}°</span>
-              </div>
+              {/* Robot Center Heading Degrees readout (shown when arena is large) */}
+              {size >= 100 && (
+                <div className="my-auto text-[7px] font-extrabold text-[#E9E1D0] flex flex-col items-center">
+                  <span>{Math.round(heading)}°</span>
+                </div>
+              )}
 
               {/* SENSOR ATRÁS (Rear IR) */}
               <div className="w-full flex items-center justify-center pb-0.5">

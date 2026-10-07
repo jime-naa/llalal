@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { generateCppFirmware } from '../utils/firmwareGenerator';
 import { RampConfig } from '../types/sumo';
-import { X, Copy, Check, Download, Table, Code2 } from 'lucide-react';
+import { X, Copy, Check, Download, Table, Code2, Sliders, RotateCcw } from 'lucide-react';
 
 interface HBridgeMappingModalProps {
   isOpen: boolean;
   onClose: () => void;
   config: RampConfig;
+  onConfigChange?: (newConfig: RampConfig) => void;
 }
 
 export const H_BRIDGE_MAPPING_ROWS = [
@@ -51,6 +52,22 @@ export const H_BRIDGE_MAPPING_ROWS = [
     result: 'Rotación rápida 360° sobre el centro del robot (horario)'
   },
   {
+    maneuver: 'Giro 90° Izquierda (1 Toque Calibrado)',
+    in1: 'LOW (0)', in2: 'HIGH (1)',
+    in3: 'HIGH (1)', in4: 'LOW (0)',
+    pwmL: '220 (86%)', pwmR: '220 (86%)',
+    motionL: 'Atrás (-86%)', motionR: 'Adelante (+86%)',
+    result: 'Giro de precisión de 90° antihorario; se detiene solo tras 260ms (un solo uso)'
+  },
+  {
+    maneuver: 'Giro 90° Derecha (1 Toque Calibrado)',
+    in1: 'HIGH (1)', in2: 'LOW (0)',
+    in3: 'LOW (0)', in4: 'HIGH (1)',
+    pwmL: '220 (86%)', pwmR: '220 (86%)',
+    motionL: 'Adelante (+86%)', motionR: 'Atrás (-86%)',
+    result: 'Giro de precisión de 90° horario; se detiene solo tras 260ms (un solo uso)'
+  },
+  {
     maneuver: 'EMERGENCIA IR ADELANTE (800ms)',
     in1: 'LOW (0)', in2: 'HIGH (1)',
     in3: 'LOW (0)', in4: 'HIGH (1)',
@@ -87,9 +104,10 @@ export const H_BRIDGE_MAPPING_ROWS = [
 export const HBridgeMappingModal: React.FC<HBridgeMappingModalProps> = ({
   isOpen,
   onClose,
-  config
+  config,
+  onConfigChange
 }) => {
-  const [activeTab, setActiveTab] = useState<'table' | 'code'>('table');
+  const [activeTab, setActiveTab] = useState<'table' | 'code' | 'tuning'>('table');
   const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
@@ -102,7 +120,7 @@ export const HBridgeMappingModal: React.FC<HBridgeMappingModalProps> = ({
     `// --- ARCHIVO: Config.h ---\n${firmware.configH}\n\n` +
     `// --- ARCHIVO: MotorControl.h (Rampas Soft Stop) ---\n${firmware.motorControlH}\n\n` +
     `// --- ARCHIVO: SafetyEscape.h (FSM Infrarroja sin delay) ---\n${firmware.safetyEscapeH}\n\n` +
-    `// --- ARCHIVO: BleParser.h (Parseo de std::string de 3 palancas) ---\n${firmware.bleParserH}\n\n` +
+    `// --- ARCHIVO: BleParser.h (Parseo de std::string de 3 palancas & 90°) ---\n${firmware.bleParserH}\n\n` +
     `// --- ARCHIVO: SumoBot_ESP32_BLE.ino ---\n${firmware.mainIno}\n`;
 
   const handleCopyCode = () => {
@@ -121,6 +139,12 @@ export const HBridgeMappingModal: React.FC<HBridgeMappingModalProps> = ({
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  const handleUpdateConfig = (partial: Partial<RampConfig>) => {
+    if (onConfigChange) {
+      onConfigChange({ ...config, ...partial });
+    }
   };
 
   return (
@@ -152,6 +176,18 @@ export const HBridgeMappingModal: React.FC<HBridgeMappingModalProps> = ({
               >
                 <Code2 className="w-3.5 h-3.5" />
                 <span>Código C++ (ESP32)</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('tuning')}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
+                  activeTab === 'tuning'
+                    ? 'bg-[#004225] text-[#E9E1D0] shadow-xs'
+                    : 'text-[#2F4F3E] hover:text-[#004225]'
+                }`}
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                <span>Ajuste Parámetros</span>
               </button>
             </div>
           </div>
@@ -217,11 +253,12 @@ export const HBridgeMappingModal: React.FC<HBridgeMappingModalProps> = ({
                   <tbody className="divide-y divide-[#e5dcce] bg-[#f8f5ee]">
                     {H_BRIDGE_MAPPING_ROWS.map((row, idx) => {
                       const isEmergency = row.maneuver.includes('EMERGENCIA');
+                      const isTurn90 = row.maneuver.includes('90°');
                       return (
                         <tr
                           key={idx}
                           className={`hover:bg-[#f0ebe0] transition-colors ${
-                            isEmergency ? 'bg-[#004225]/5 font-semibold' : ''
+                            isEmergency ? 'bg-[#004225]/10 font-semibold' : isTurn90 ? 'bg-amber-500/10' : ''
                           }`}
                         >
                           <td className="px-3.5 py-2.5 font-bold text-[#1B1C1E] whitespace-nowrap">
@@ -245,7 +282,7 @@ export const HBridgeMappingModal: React.FC<HBridgeMappingModalProps> = ({
                 </table>
               </div>
             </div>
-          ) : (
+          ) : activeTab === 'code' ? (
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -262,6 +299,108 @@ export const HBridgeMappingModal: React.FC<HBridgeMappingModalProps> = ({
                 <pre className="p-4 overflow-x-auto max-h-[58vh] leading-relaxed selection:bg-[#004225]/60 text-stone-200">
                   <code>{fullCode}</code>
                 </pre>
+              </div>
+            </div>
+          ) : (
+            /* Tab: Tuning Parameters */
+            <div className="flex flex-col gap-4">
+              <div>
+                <h3 className="text-base font-bold text-[#1B1C1E]">
+                  Ajustes Dinámicos de Rampas y Tiempos de FSM
+                </h3>
+                <p className="text-xs text-[#8A7F6A]">
+                  Los cambios realizados aquí se actualizan de inmediato en el lazo cinemático y en el código C++ generado.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Deceleration Step (Soft Stop) */}
+                <div className="bg-[#f0ebe0] p-4 rounded-2xl border border-[#d8cfbe] flex flex-col justify-between">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-[#1B1C1E]">Frenado Suave (Soft Stop)</span>
+                    <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-full bg-[#E9E1D0] text-[#004225] border border-[#d8cfbe]">
+                      {config.decelStep} PWM / ciclo
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#8A7F6A] mb-3">
+                    Velocidad a la que el robot desciende a cero al soltar las palancas sin golpear los engranes.
+                  </p>
+                  <input
+                    type="range"
+                    min="8"
+                    max="64"
+                    step="2"
+                    value={config.decelStep}
+                    onChange={(e) => handleUpdateConfig({ decelStep: Number(e.target.value) })}
+                    className="w-full accent-[#004225] cursor-pointer"
+                  />
+                </div>
+
+                {/* Acceleration Step (Soft Start) */}
+                <div className="bg-[#f0ebe0] p-4 rounded-2xl border border-[#d8cfbe] flex flex-col justify-between">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-[#1B1C1E]">Aceleración Suave (Soft Start)</span>
+                    <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-full bg-[#E9E1D0] text-[#004225] border border-[#d8cfbe]">
+                      {config.accelStep} PWM / ciclo
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#8A7F6A] mb-3">
+                    Tasa de subida de torque para arrancar sin patinar las ruedas de silicona.
+                  </p>
+                  <input
+                    type="range"
+                    min="6"
+                    max="48"
+                    step="2"
+                    value={config.accelStep}
+                    onChange={(e) => handleUpdateConfig({ accelStep: Number(e.target.value) })}
+                    className="w-full accent-[#004225] cursor-pointer"
+                  />
+                </div>
+
+                {/* Front Escape Duration */}
+                <div className="bg-[#f0ebe0] p-4 rounded-2xl border border-[#d8cfbe] flex flex-col justify-between">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-[#1B1C1E]">Tiempo Contraataque Frontal</span>
+                    <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-full bg-[#E9E1D0] text-[#004225] border border-[#d8cfbe]">
+                      {config.frontEscapeDurationMs} ms
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#8A7F6A] mb-3">
+                    Duración a -100% PWM marcha atrás cuando el sensor frontal detecta la línea blanca.
+                  </p>
+                  <input
+                    type="range"
+                    min="300"
+                    max="1500"
+                    step="50"
+                    value={config.frontEscapeDurationMs}
+                    onChange={(e) => handleUpdateConfig({ frontEscapeDurationMs: Number(e.target.value) })}
+                    className="w-full accent-[#004225] cursor-pointer"
+                  />
+                </div>
+
+                {/* Rear Escape Duration */}
+                <div className="bg-[#f0ebe0] p-4 rounded-2xl border border-[#d8cfbe] flex flex-col justify-between">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-[#1B1C1E]">Tiempo Contraataque Trasero</span>
+                    <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-full bg-[#E9E1D0] text-[#004225] border border-[#d8cfbe]">
+                      {config.rearEscapeDurationMs} ms
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#8A7F6A] mb-3">
+                    Duración a +100% PWM avance frontal cuando el sensor trasero detecta la línea blanca.
+                  </p>
+                  <input
+                    type="range"
+                    min="300"
+                    max="1500"
+                    step="50"
+                    value={config.rearEscapeDurationMs}
+                    onChange={(e) => handleUpdateConfig({ rearEscapeDurationMs: Number(e.target.value) })}
+                    className="w-full accent-[#004225] cursor-pointer"
+                  />
+                </div>
               </div>
             </div>
           )}
