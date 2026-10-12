@@ -232,7 +232,11 @@ class BleManager {
     });
   }
 
-  public async sendCommand(cmd: string): Promise<boolean> {
+  private lastSendTime = 0;
+  private throttleIntervalMs = 50;
+  private throttleTimer: any = null;
+
+  public async sendCommand(cmd: string, immediate: boolean = false): Promise<boolean> {
     this.updateState({ lastSentCommand: cmd });
 
     if (this.state.isSimulated) {
@@ -243,13 +247,41 @@ class BleManager {
       return false;
     }
 
+    const now = Date.now();
+    const timeSinceLast = now - this.lastSendTime;
+
+    // If an urgent brake or release command ('0,0,0' or immediate flag), send without throttling delay
+    const isBrakeOrStop = cmd.trim() === '0,0,0' || cmd.startsWith('STOP') || immediate;
+
+    if (!isBrakeOrStop && timeSinceLast < this.throttleIntervalMs) {
+      // Buffer the latest value to send as soon as interval expires
+      this.queuedCommand = cmd;
+      if (!this.throttleTimer) {
+        this.throttleTimer = setTimeout(() => {
+          this.throttleTimer = null;
+          if (this.queuedCommand !== null) {
+            const next = this.queuedCommand;
+            this.queuedCommand = null;
+            this.sendCommand(next, true);
+          }
+        }, this.throttleIntervalMs - timeSinceLast);
+      }
+      return true;
+    }
+
+    if (this.throttleTimer) {
+      clearTimeout(this.throttleTimer);
+      this.throttleTimer = null;
+    }
+
     if (this.isWriting) {
-      // Keep only the latest command in queue to prevent backpressure
       this.queuedCommand = cmd;
       return true;
     }
 
     this.isWriting = true;
+    this.lastSendTime = Date.now();
+
     try {
       const encoder = new TextEncoder();
       const data = encoder.encode(cmd.endsWith('\n') ? cmd : cmd + '\n');
@@ -265,7 +297,8 @@ class BleManager {
       if (this.queuedCommand !== null) {
         const nextCmd = this.queuedCommand;
         this.queuedCommand = null;
-        this.sendCommand(nextCmd);
+        // Small yield so the stack processes without overlapping
+        setTimeout(() => this.sendCommand(nextCmd, true), 15);
       }
     }
 

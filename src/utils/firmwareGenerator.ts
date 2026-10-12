@@ -142,6 +142,8 @@ public:
         ledcSetup(PWM_CHANNEL_R, PWM_FREQ_HZ, PWM_RESOLUTION);
         ledcAttachPin(PIN_MOTOR_R_PWM, PWM_CHANNEL_R);
 
+        // Asegurar que el pin STBY (Standby) del driver esté permanentemente activo (HIGH)
+        digitalWrite(PIN_MOTOR_STBY, HIGH);
         stop();
     }
 
@@ -156,6 +158,7 @@ public:
         targetPwmR = constrain(pwmR, -255, 255);
         currentPwmL = targetPwmL;
         currentPwmR = targetPwmR;
+        digitalWrite(PIN_MOTOR_STBY, HIGH); // Reafirma STBY activo
         writeHardware(currentPwmL, PIN_MOTOR_L_IN1, PIN_MOTOR_L_IN2, PWM_CHANNEL_L);
         writeHardware(currentPwmR, PIN_MOTOR_R_IN1, PIN_MOTOR_R_IN2, PWM_CHANNEL_R);
     }
@@ -173,13 +176,29 @@ public:
         }
     }
 
+    // Parada suave (Soft Stop / Coast): IN1=LOW, IN2=LOW, PWM=0
+    // Mantiene STBY=HIGH para evitar transitorios indeseados que congelan el driver
     void stop() {
         targetPwmL = 0; currentPwmL = 0;
         targetPwmR = 0; currentPwmR = 0;
+        digitalWrite(PIN_MOTOR_STBY, HIGH);
         digitalWrite(PIN_MOTOR_L_IN1, LOW);
         digitalWrite(PIN_MOTOR_L_IN2, LOW);
         digitalWrite(PIN_MOTOR_R_IN1, LOW);
         digitalWrite(PIN_MOTOR_R_IN2, LOW);
+        ledcWrite(PWM_CHANNEL_L, 0);
+        ledcWrite(PWM_CHANNEL_R, 0);
+    }
+
+    // Freno activo eléctrico (Short Brake): IN1=HIGH, IN2=HIGH con PWM a 0
+    void brake() {
+        targetPwmL = 0; currentPwmL = 0;
+        targetPwmR = 0; currentPwmR = 0;
+        digitalWrite(PIN_MOTOR_STBY, HIGH);
+        digitalWrite(PIN_MOTOR_L_IN1, HIGH);
+        digitalWrite(PIN_MOTOR_L_IN2, HIGH);
+        digitalWrite(PIN_MOTOR_R_IN1, HIGH);
+        digitalWrite(PIN_MOTOR_R_IN2, HIGH);
         ledcWrite(PWM_CHANNEL_L, 0);
         ledcWrite(PWM_CHANNEL_R, 0);
     }
@@ -588,16 +607,31 @@ void loop() {
     motors.updateRamps();
 
     // -------------------------------------------------------------
-    // GESTIÓN DE RECONEXIÓN AUTOMÁTICA BLE
+    // GESTIÓN DE RECONEXIÓN AUTOMÁTICA BLE (100% SIN DELAY BLOQUEANTE)
     // -------------------------------------------------------------
+    static unsigned long disconnectTimestamp = 0;
+    static bool pendingAdvertisingRestart = false;
+
     if (!deviceConnected && oldDeviceConnected) {
-        delay(500); // Pequeña pausa al desconectar para que el stack BLE se limpie
-        pServer->startAdvertising(); // Reiniciar anuncios
-        Serial.println("[BLE] Reiniciando anuncios BLE...");
+        // Detectada desconexión: marcar timestamp sin bloquear el loop con delay()
         oldDeviceConnected = deviceConnected;
+        disconnectTimestamp = millis();
+        pendingAdvertisingRestart = true;
+        Serial.println("[BLE] Conexión perdida. Preparando reactivación de anuncios BLE...");
     }
+
+    if (pendingAdvertisingRestart && !deviceConnected) {
+        // Esperar 200ms no bloqueantes para que el stack BLE libere recursos antes de reiniciar anuncios
+        if (millis() - disconnectTimestamp >= 200) {
+            pServer->startAdvertising();
+            pendingAdvertisingRestart = false;
+            Serial.println("[BLE] Anuncios BLE reiniciados. Listo para nueva conexión.");
+        }
+    }
+
     if (deviceConnected && !oldDeviceConnected) {
         oldDeviceConnected = deviceConnected;
+        pendingAdvertisingRestart = false;
     }
 }
 `;
