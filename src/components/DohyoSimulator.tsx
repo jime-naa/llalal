@@ -106,9 +106,10 @@ export const DohyoSimulator: React.FC<DohyoSimulatorProps> = ({
               onNudgeForward();
               onEmergencyTriggered('FRONT');
             }}
-            className="flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-[#E9E1D0] hover:bg-[#d8cfbe] text-[#1B1C1E] border border-[#d8cfbe] transition-all active:scale-95"
+            title="Activa sensor delantero y retrocede hasta el centro del Dohyo"
+            className="flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-[#E9E1D0] hover:bg-[#d8cfbe] text-[#1B1C1E] border border-[#d8cfbe] transition-all active:scale-95 shadow-xs"
           >
-            <span>🚨 Probar Línea ADELANTE</span>
+            <span>🚨 Sensor Frontal (Retroceder al Centro)</span>
           </button>
 
           <button
@@ -116,9 +117,10 @@ export const DohyoSimulator: React.FC<DohyoSimulatorProps> = ({
               onNudgeBackward();
               onEmergencyTriggered('REAR');
             }}
-            className="flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-[#E9E1D0] hover:bg-[#d8cfbe] text-[#1B1C1E] border border-[#d8cfbe] transition-all active:scale-95"
+            title="Activa sensor trasero y avanza hasta el centro del Dohyo"
+            className="flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-[#E9E1D0] hover:bg-[#d8cfbe] text-[#1B1C1E] border border-[#d8cfbe] transition-all active:scale-95 shadow-xs"
           >
-            <span>🚨 Probar Línea ATRÁS</span>
+            <span>🚨 Sensor Trasero (Avanzar al Centro)</span>
           </button>
         </div>
       </div>

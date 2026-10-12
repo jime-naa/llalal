@@ -99,6 +99,24 @@ export default function App() {
     setActiveTurn90(null);
     targetPwmLRef.current = 0;
     targetPwmRRef.current = 0;
+    currentPwmLRef.current = 0;
+    currentPwmRRef.current = 0;
+    setMotorL({
+      targetPwm: 0,
+      currentPwm: 0,
+      dutyCyclePercent: 0,
+      direction: 'STOP',
+      in1: false,
+      in2: false
+    });
+    setMotorR({
+      targetPwm: 0,
+      currentPwm: 0,
+      dutyCyclePercent: 0,
+      direction: 'STOP',
+      in1: false,
+      in2: false
+    });
     transmitBle('0,0,0');
   }, [transmitBle]);
 
@@ -170,25 +188,30 @@ export default function App() {
       const now = Date.now();
 
       // --- MÁQUINA DE ESTADOS SIN DELAY (CON MILLIS) ---
+      // Maniobra activa de regreso al centro tras detección de línea por sensor
       if (escapeSubstate === 'FRONT_ESCAPE_REVERSE') {
         targetPwmLRef.current = -255;
         targetPwmRRef.current = -255;
-        if (now - escapeTimerRef.current >= config.frontEscapeDurationMs) {
-          if (!irSensors.front) {
-            setEscapeSubstate('IDLE');
-            targetPwmLRef.current = 0;
-            targetPwmRRef.current = 0;
-          }
+        const elapsed = now - escapeTimerRef.current;
+        // Permite que el robot retroceda hasta el centro (duración calibrada o tiempo máximo de seguridad)
+        if (elapsed >= config.frontEscapeDurationMs) {
+          setEscapeSubstate('IDLE');
+          targetPwmLRef.current = 0;
+          targetPwmRRef.current = 0;
+          currentPwmLRef.current = 0;
+          currentPwmRRef.current = 0;
         }
       } else if (escapeSubstate === 'REAR_ESCAPE_FORWARD') {
         targetPwmLRef.current = 255;
         targetPwmRRef.current = 255;
-        if (now - escapeTimerRef.current >= config.rearEscapeDurationMs) {
-          if (!irSensors.rear) {
-            setEscapeSubstate('IDLE');
-            targetPwmLRef.current = 0;
-            targetPwmRRef.current = 0;
-          }
+        const elapsed = now - escapeTimerRef.current;
+        // Permite que el robot avance hasta el centro (duración calibrada o tiempo máximo de seguridad)
+        if (elapsed >= config.rearEscapeDurationMs) {
+          setEscapeSubstate('IDLE');
+          targetPwmLRef.current = 0;
+          targetPwmRRef.current = 0;
+          currentPwmLRef.current = 0;
+          currentPwmRRef.current = 0;
         }
       }
 

@@ -94,7 +94,7 @@ export function useSumoPhysics({
 
       // If one-shot 90° turn is active and no emergency, command differential rotation
       if (turnTrack.active && currentEscape === 'IDLE') {
-        const turnSpeed = 220;
+        const turnSpeed = 200;
         if (turnTrack.active === 'LEFT') {
           // Left turn: left wheel backwards, right wheel forwards
           pwmL = -turnSpeed;
@@ -110,7 +110,8 @@ export function useSumoPhysics({
       const vL = (pwmL / 255) * maxSpeed;
       const vR = (pwmR / 255) * maxSpeed;
 
-      const linearV = (vL + vR) / 2;
+      // Pure in-place pivot if 90° turn is active (zero linear drift)
+      const linearV = turnTrack.active ? 0 : (vL + vR) / 2;
       // In screen coordinates (Y down): when vL > vR, vehicle rotates clockwise (positive angular velocity)
       const angularW = (vL - vR) / WHEELBASE;
 
@@ -124,26 +125,48 @@ export function useSumoPhysics({
         turnTrack.accumulatedAngle += angleDelta;
 
         if (turnTrack.accumulatedAngle >= 90) {
-          // Exactly 90° reached! Snap to target heading and stop.
-          const targetHeading =
+          // Exactly 90° reached! Snap cleanly to target heading and stop.
+          let finalHeading =
             turnTrack.active === 'LEFT'
               ? turnTrack.startHeading - 90
               : turnTrack.startHeading + 90;
 
-          newHeadingDeg = targetHeading;
+          while (finalHeading > 180) finalHeading -= 360;
+          while (finalHeading <= -180) finalHeading += 360;
+
+          newHeadingDeg = finalHeading;
           turnTrack.active = null;
+          pwmL = 0;
+          pwmR = 0;
           onTurn90CompleteRef.current();
         }
       }
 
       while (newHeadingDeg > 180) newHeadingDeg -= 360;
-      while (newHeadingDeg < -180) newHeadingDeg += 360;
+      while (newHeadingDeg <= -180) newHeadingDeg += 360;
 
       const dx = Math.cos(newRadHeading) * linearV * dt;
       const dy = Math.sin(newRadHeading) * linearV * dt;
 
       let nextX = x + dx;
       let nextY = y + dy;
+
+      // Safe return to Dohyo Center during Emergency Escape
+      // If the robot is in an active emergency escape maneuver (FRONT_ESCAPE_REVERSE or REAR_ESCAPE_FORWARD),
+      // monitor its distance to the exact center. Once it safely reaches the center zone (radius <= 18px),
+      // finish the escape maneuver cleanly so the robot comes to a smooth halt at the center.
+      const distToCenter = Math.hypot(nextX - CENTER, nextY - CENTER);
+      if (currentEscape !== 'IDLE') {
+        const SAFE_CENTER_RADIUS = 18; // Close to dead-center
+        if (distToCenter <= SAFE_CENTER_RADIUS) {
+          // Reached center safely!
+          nextX = CENTER;
+          nextY = CENTER;
+          pwmL = 0;
+          pwmR = 0;
+          onTurn90CompleteRef.current(); // Zeroes motors & resets escape state cleanly
+        }
+      }
 
       // Clamp robot position so it never vanishes off the canvas
       const maxDistance = DOHYO_RADIUS + 12;
@@ -180,12 +203,8 @@ export function useSumoPhysics({
       if (hitFront !== prevIR.front || hitRear !== prevIR.rear) {
         onIRChangeRef.current({ front: hitFront, rear: hitRear });
 
-        if (currentEscape === 'IDLE') {
-          if (turnTrack.active) {
-            turnTrack.active = null;
-            onTurn90CompleteRef.current();
-          }
-
+        // Only trigger emergency escape if not actively performing a deliberate 90° in-place turn
+        if (currentEscape === 'IDLE' && !turnTrack.active) {
           if (hitFront) onEmergencyTriggeredRef.current('FRONT');
           else if (hitRear) onEmergencyTriggeredRef.current('REAR');
         }
@@ -207,6 +226,7 @@ export function useSumoPhysics({
     setRobotY(CENTER);
     setHeading(-90);
     onIRChangeRef.current({ front: false, rear: false });
+    onTurn90CompleteRef.current();
   };
 
   const nudgeForwardToEdge = () => {

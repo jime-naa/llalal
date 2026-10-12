@@ -35,20 +35,23 @@ export const DohyoArena: React.FC<DohyoArenaProps> = ({
     <div className="relative flex flex-col items-center justify-center select-none">
       {/* Outer border container */}
       <div
-        className="relative rounded-full shadow-inner overflow-hidden border-4 border-[#d8cfbe]"
+        className={`relative rounded-full shadow-inner overflow-hidden flex items-center justify-center shrink-0 ${
+          size < 60 ? 'border-[1.5px] border-[#d8cfbe]' : size < 120 ? 'border-2 border-[#d8cfbe]' : 'border-4 border-[#d8cfbe]'
+        }`}
         style={{
           width: size,
           height: size,
           backgroundColor: '#1B1C1E'
         }}
       >
-        {/* Scaled Dohyo arena elements */}
+        {/* Scaled Dohyo arena elements perfectly centered */}
         <div
-          className="absolute origin-top-left pointer-events-none"
+          className="absolute top-1/2 left-1/2 pointer-events-none shrink-0"
           style={{
             width: BASE_SIZE,
             height: BASE_SIZE,
-            transform: `scale(${scale})`
+            transform: `translate(-50%, -50%) scale(${scale})`,
+            transformOrigin: 'center center'
           }}
         >
           {/* White border circle */}
@@ -85,9 +88,9 @@ export const DohyoArena: React.FC<DohyoArenaProps> = ({
             <div className="h-full w-[1px] border-l border-dashed border-[#E9E1D0] absolute" />
           </div>
 
-          {/* SUMOBOT with 2 IR sensors (Front and Rear) */}
+          {/* SUMOBOT with 2 IR sensors (Front and Rear) - Instant 60 FPS frame rendering without CSS transition lag */}
           <div
-            className="absolute transition-transform duration-75 ease-linear pointer-events-none"
+            className="absolute pointer-events-none will-change-transform"
             style={{
               left: robotX,
               top: robotY,

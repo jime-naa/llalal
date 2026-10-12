@@ -107,7 +107,11 @@ export const LandscapeCockpit: React.FC<LandscapeCockpitProps> = ({
           {isEmergencyLine ? (
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1B1C1E] text-[#E9E1D0] text-xs font-semibold shadow-sm animate-pulse border border-[#8A7F6A]">
               <span className="w-2 h-2 rounded-full bg-rose-400" />
-              <span>¡Línea blanca detectada! Maniobra de rescate...</span>
+              <span>
+                {escapeSubstate === 'FRONT_ESCAPE_REVERSE'
+                  ? '¡Sensor Frontal! Retrocediendo hacia el centro del Dohyo...'
+                  : '¡Sensor Trasero! Avanzando hacia el centro del Dohyo...'}
+              </span>
             </div>
           ) : isOverrideActive ? (
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#2F4F3E]/10 border border-[#2F4F3E]/30 text-[#2F4F3E] text-xs font-semibold">
